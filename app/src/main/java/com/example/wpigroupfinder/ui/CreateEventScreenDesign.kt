@@ -1,6 +1,7 @@
 package com.example.wpigroupfinder.ui
 
 import android.app.TimePickerDialog
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -11,11 +12,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import okhttp3.Request
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +41,7 @@ fun CreateEventScreenDesign(navController: NavController) {
     var location by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var showSuccess by remember { mutableStateOf(false) }
-
+    var club by remember { mutableStateOf("") }
     val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
     val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a")
     val context = LocalContext.current
@@ -180,17 +190,26 @@ fun CreateEventScreenDesign(navController: NavController) {
                 maxLines = 5
             )
             Spacer(modifier = Modifier.height(24.dp))
+            OutlinedTextField(
+                value = club,
+                onValueChange = { club = it },
+                label = { Text("Club") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
 
             Button(
                 onClick = {
-                    // Here you'd add logic to create/save the event
-                    showSuccess = true
+                    if (title.isNotBlank() && date != null && startTime != null && endTime != null && location.isNotBlank()) {
+                        createEventRequest(title, location, date, startTime, endTime, description)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = title.isNotBlank() && date != null && startTime != null && endTime != null && location.isNotBlank()
             ) {
                 Text("Create Event")
             }
+
 
             if (showSuccess) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -206,3 +225,59 @@ fun CreateEventScreenDesign(navController: NavController) {
         }
     }
 }
+
+fun createEventRequest(title: String,
+                       location: String,
+                       date: LocalDate?,
+                       startTime: LocalTime?,
+                       endTime: LocalTime?,
+                       description: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+        val client = OkHttpClient()
+        val url = "https://fgehdrx5r6.execute-api.us-east-2.amazonaws.com/wpigroupfinder/createEvent"
+        var showSuccess: Boolean
+        // Format dates and times for JSON
+        val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+        val timeFormatter = DateTimeFormatter.ISO_LOCAL_TIME
+
+        val jsonBody = """
+        {
+            "title": "${title.replace("\"", "\\\"")}",
+            "location": "${location.replace("\"", "\\\"")}",
+            "createdBy": "1", 
+            ${if (description.isNotBlank()) "\"description\": \"${description.replace("\"", "\\\"")}\"," else ""}
+            ${date?.let { "\"date\": \"${it.format(dateFormatter)}\"," } ?: ""}
+            ${startTime?.let { "\"start_time\": \"${it.format(timeFormatter)}\"," } ?: ""}
+            ${endTime?.let { "\"end_time\": \"${it.format(timeFormatter)}\"," } ?: ""}
+            "club_id": "CLUB_ID_HERE", // Add if you have club IDs
+            "categoryId": 1 // Add actual category ID if needed
+        }
+        """.trimIndent()
+            .replace(",\n}", "\n}") // Remove trailing comma if present
+
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = jsonBody.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                // Handle successful response
+                showSuccess = true
+            } else {
+                // Handle error
+                showSuccess = false
+                Log.e("MyAppDB", "Error occurred: ${response.body}")
+                Log.e("MyAppDB","Error: ${response.code} - ${response.body?.string()}")
+                println("Error: ${response.code} - ${response.body?.string()}")
+            }
+        } catch (e: Exception) {
+            println("Exception: ${e.message}")
+        }
+    }
+}
+
