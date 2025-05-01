@@ -3,8 +3,17 @@ package com.example.wpigroupfinder.screens.clubowner
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +33,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClubOwnerScreenDesign(navController: NavController, clubid: String, userid: String) { //Basically view club screen
     var userIdInt = userid?.toInt()
@@ -34,6 +44,7 @@ fun ClubOwnerScreenDesign(navController: NavController, clubid: String, userid: 
     var clubOwnerName by remember { mutableStateOf("") }
     var clubOwnerUid by remember{ mutableIntStateOf(0) }
     var isMember by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
 
     fun setStates(body: JSONObject){
         clubName = body.getString("club_name")
@@ -82,6 +93,8 @@ fun ClubOwnerScreenDesign(navController: NavController, clubid: String, userid: 
             } catch (e: Exception) {
                 println("Exception: ${e.message}")
             }
+
+            isLoading = false
         }
     }
 
@@ -166,43 +179,68 @@ fun ClubOwnerScreenDesign(navController: NavController, clubid: String, userid: 
             }
         }
     }
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        if(memberNum != 0) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("$clubName")
-                Text("Owner")
-                Text("$clubOwnerName")
-                Text("About")
-                Text("$clubDesc")
-                Text("Number of Members")
-                Text("$memberNum")
-
-                Button(onClick = { navController.navigate("user/${userIdInt}") }) {
-                    Text("Back")
-                }
-
-                if (clubOwnerUid == userIdInt) {
-                    Button(onClick = { navController.navigate("editClub/${clubIdInt}/${userIdInt}") }) {
-                        Text("Edit Club Page")
-                    }
-                } else if (!isMember){
-                    Button(onClick = { joinClub() }) {
-                        Text("Join Club")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Owner Club Page") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
-                else if(isMember == true && clubOwnerUid != userIdInt){
-                    Button(onClick = {leaveClub()}){
-                        Text("Leave Club")
-                    }
+            )
+        }
+    ) { innerPadding ->
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-                Button(onClick = { navController.navigate("create_event/${clubName}") }) {
-                    Text("Add Club Event")
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (memberNum != 0) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("$clubName")
+                            Text("Owner")
+                            Text("$clubOwnerName")
+                            Text("About")
+                            Text("$clubDesc")
+                            Text("Number of Members")
+                            Text("$memberNum")
+
+                            if (clubOwnerUid == userIdInt) {
+                                Button(onClick = { navController.navigate("editClub/${clubIdInt}/${userIdInt}") }) {
+                                    Text("Edit Club Page")
+                                }
+                            } else if (!isMember) {
+                                Button(onClick = { joinClub() }) {
+                                    Text("Join Club")
+                                }
+                            } else if (isMember == true && clubOwnerUid != userIdInt) {
+                                Button(onClick = { leaveClub() }) {
+                                    Text("Leave Club")
+                                }
+                            }
+                            Button(onClick = { navController.navigate("create_event/${clubName}") }) {
+                                Text("Add Club Event")
+                            }
+                        }
+                    }
                 }
             }
         }

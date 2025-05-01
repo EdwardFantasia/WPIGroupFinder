@@ -3,9 +3,18 @@ package com.example.wpigroupfinder.screens.clubowner
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +34,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 
 fun EditClubPageScreenDesign(navController: NavController, clubid: String, userid: String) {
@@ -32,6 +42,7 @@ fun EditClubPageScreenDesign(navController: NavController, clubid: String, useri
     var clubIdInt = clubid?.toInt()
     var clubName by remember { mutableStateOf("") }
     var clubDesc by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
     LaunchedEffect("test") {
         CoroutineScope(Dispatchers.IO).launch {
             val client = OkHttpClient()
@@ -74,6 +85,7 @@ fun EditClubPageScreenDesign(navController: NavController, clubid: String, useri
     }
 
     fun editClubRequest(){
+        isLoading = true
         CoroutineScope(Dispatchers.IO).launch {
             val client = OkHttpClient()
 
@@ -105,28 +117,61 @@ fun EditClubPageScreenDesign(navController: NavController, clubid: String, useri
                 println("Exception: ${e.message}")
             }
         }
+
         navController.navigate("clubOwner/${clubIdInt}/${userIdInt}")
+
     }
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Edit Club Page")
-            OutlinedTextField(
-                value = clubName,
-                onValueChange = { clubName = it },
-                label = { Text("Club Name") }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Edit Club Details") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
             )
-            OutlinedTextField(
-                value = clubDesc,
-                onValueChange = { clubDesc = it },
-                label = { Text("About Club") }
-            )
-            Button(onClick = {editClubRequest()}) {
-                Text("Save Changes")
+        }
+    ) { innerPadding ->
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        OutlinedTextField(
+                            value = clubName,
+                            onValueChange = { clubName = it },
+                            label = { Text("Club Name") }
+                        )
+                        OutlinedTextField(
+                            value = clubDesc,
+                            onValueChange = { clubDesc = it },
+                            label = { Text("About Club") }
+                        )
+                        Button(onClick = { editClubRequest() }) {
+                            Text("Save Changes")
+                        }
+                    }
+                }
             }
         }
     }
